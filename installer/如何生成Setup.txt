@@ -1,0 +1,22 @@
+生成 Windows 安装包（Setup.exe）
+================================
+
+前置条件
+--------
+1. 在本机（任意系统）已执行过：npm run build:win
+   会生成目录：dist/windows-bundle
+2. 在一台 Windows 电脑上安装 Inno Setup 6（免费）：
+   https://jrsoftware.org/isdl.php
+
+编译步骤
+--------
+1. 将整个项目文件夹复制到该 Windows 电脑（或至少包含 dist/windows-bundle 与 installer 目录）。
+2. 双击打开 installer\PhotoToolSetup.iss（或用 Inno Setup 打开该文件）。
+3. 菜单 Build → Compile（或按 Ctrl+F9）。
+4. 生成的安装包位于：dist\installer\PhotoTool_Setup_0.1.0.exe
+
+说明
+----
+• 安装包会把 windows-bundle 内的文件解压到用户选择的目录，并创建开始菜单/桌面快捷方式，指向「启动照片处理.bat」。
+• 目标电脑仍需单独安装 Node.js，且需能运行本项目的 Next.js 版本（见 windows-bundle 内「使用说明.txt」）。
+• Windows 7：当前技术栈（Next.js 16）通常需要较新 Node，官方已不再支持 Win7；实际可运行系统以 Node 官方说明为准。

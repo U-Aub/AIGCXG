@@ -1,0 +1,23 @@
+# v0 runtime files
+__v0_runtime_loader.js
+__v0_devtools.tsx
+__v0_jsx-dev-runtime.ts
+
+# Common ignores
+node_modules/
+.next/
+dist/
+.env*.local
+.DS_Store
+._.DS_Store
+._*
+
+# 便携 Node / 本地工具（勿提交）
+.tools/
+
+# IDE（可选：若不想提交删掉下行）
+.idea/
+
+# 日志与系统文件
+*.log
+Thumbs.db
