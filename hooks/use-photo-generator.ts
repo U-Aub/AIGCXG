@@ -9,9 +9,22 @@ import type {
 } from "@/lib/photo-types"
 import { generatePrompt } from "@/lib/prompt-templates"
 import { getArkCredentialsForRequest } from "@/lib/client-ark-settings"
+import {
+  assertJsonBodyWithinVercelLimit,
+  friendlyBrowserFetchError,
+} from "@/lib/browser-api-error"
+import {
+  compressDataUrlForApi,
+  compressDataUrlForApiOptional,
+} from "@/lib/compress-image-for-api"
 
 interface UsePhotoGeneratorOptions {
-  onSuccess?: (imageUrl: string, usage?: { input_tokens: number; output_tokens: number }) => void
+  onSuccess?: (
+    imageUrl: string,
+    usage?: { input_tokens: number; output_tokens: number },
+    /** originalAspect 时为实际提交 API 的像素尺寸（压缩后可能与预览一致） */
+    meta?: { submittedSourceWidth: number; submittedSourceHeight: number }
+  ) => void
   onError?: (error: string) => void
 }
 
@@ -91,26 +104,35 @@ export function usePhotoGenerator(options?: UsePhotoGeneratorOptions): UsePhotoG
       }, 500)
 
       try {
-        const prompt = params.customPrompt || generatePrompt(
-          params.sizeKey,
-          params.backgroundColorKey,
-          {
+        const [mainPacked, clothingPacked, bgPacked] = await Promise.all([
+          compressDataUrlForApi(params.image),
+          compressDataUrlForApiOptional(params.clothingImage),
+          compressDataUrlForApiOptional(params.backgroundReferenceImage),
+        ])
+
+        const aspectW =
+          params.sizeKey === "originalAspect" ? mainPacked.width : params.sourceWidth
+        const aspectH =
+          params.sizeKey === "originalAspect" ? mainPacked.height : params.sourceHeight
+
+        const prompt =
+          params.customPrompt ||
+          generatePrompt(params.sizeKey, params.backgroundColorKey, {
             hasClothingImage: !!params.clothingImage,
             hasBackgroundReference: !!params.backgroundReferenceImage,
             customWidthMm: params.customWidthMm,
             customHeightMm: params.customHeightMm,
             sourcePixelWidth:
-              params.sizeKey === "originalAspect" ? params.sourceWidth : undefined,
+              params.sizeKey === "originalAspect" ? aspectW : undefined,
             sourcePixelHeight:
-              params.sizeKey === "originalAspect" ? params.sourceHeight : undefined,
-          }
-        )
+              params.sizeKey === "originalAspect" ? aspectH : undefined,
+          })
 
         const creds = getArkCredentialsForRequest()
         const requestBody: GenerateRequest = {
-          image: params.image,
-          clothingImage: params.clothingImage || undefined,
-          backgroundReferenceImage: params.backgroundReferenceImage || undefined,
+          image: mainPacked.dataUrl,
+          clothingImage: clothingPacked,
+          backgroundReferenceImage: bgPacked,
           sizeKey: params.sizeKey,
           customWidthMm:
             params.sizeKey === "custom" ? params.customWidthMm : undefined,
@@ -121,18 +143,21 @@ export function usePhotoGenerator(options?: UsePhotoGeneratorOptions): UsePhotoG
           arkApiKey: creds.arkApiKey || undefined,
           arkModel: creds.arkModel || undefined,
           ...(params.sizeKey === "originalAspect" &&
-          params.sourceWidth != null &&
-          params.sourceHeight != null
-            ? { sourceWidth: params.sourceWidth, sourceHeight: params.sourceHeight }
+          aspectW != null &&
+          aspectH != null
+            ? { sourceWidth: aspectW, sourceHeight: aspectH }
             : {}),
         }
+
+        const payload = JSON.stringify(requestBody)
+        assertJsonBodyWithinVercelLimit(payload)
 
         const response = await fetch("/api/generate", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify(requestBody),
+          body: payload,
           signal: controller.signal,
         })
 
@@ -144,14 +169,24 @@ export function usePhotoGenerator(options?: UsePhotoGeneratorOptions): UsePhotoG
         const data: GenerateResponse = await response.json()
         setProgress(100)
         setLastDurationMs(Date.now() - startedAtRef.current)
-        options?.onSuccess?.(data.imageUrl, data.usage)
+        options?.onSuccess?.(
+          data.imageUrl,
+          data.usage,
+          params.sizeKey === "originalAspect"
+            ? {
+                submittedSourceWidth: mainPacked.width,
+                submittedSourceHeight: mainPacked.height,
+              }
+            : undefined
+        )
       } catch (err) {
         if (err instanceof Error) {
           if (err.name === "AbortError") {
             setError("处理已取消")
           } else {
-            setError(err.message)
-            options?.onError?.(err.message)
+            const msg = friendlyBrowserFetchError(err)
+            setError(msg)
+            options?.onError?.(msg)
           }
         } else {
           setError("未知错误")

@@ -3,9 +3,19 @@
 import { useState, useCallback, useRef, useEffect } from "react"
 import type { GenerateResponse, VintageRestoreRequest } from "@/lib/photo-types"
 import { getArkCredentialsForRequest } from "@/lib/client-ark-settings"
+import {
+  assertJsonBodyWithinVercelLimit,
+  friendlyBrowserFetchError,
+} from "@/lib/browser-api-error"
+import { compressDataUrlForApi } from "@/lib/compress-image-for-api"
 
 interface UseVintageRestoreOptions {
-  onSuccess?: (imageUrl: string, usage?: { input_tokens: number; output_tokens: number }) => void
+  onSuccess?: (
+    imageUrl: string,
+    usage?: { input_tokens: number; output_tokens: number },
+    /** 实际提交 API 的图幅（压缩后可能与预览原图不同） */
+    submittedSource?: { width: number; height: number }
+  ) => void
   onError?: (error: string) => void
 }
 
@@ -52,21 +62,25 @@ export function useVintageRestore(options?: UseVintageRestoreOptions) {
       }, 500)
 
       try {
+        const packed = await compressDataUrlForApi(params.image)
         const creds = getArkCredentialsForRequest()
         const body: VintageRestoreRequest = {
           mode: "vintage",
-          image: params.image,
+          image: packed.dataUrl,
           prompt: params.prompt,
-          sourceWidth: params.sourceWidth,
-          sourceHeight: params.sourceHeight,
+          sourceWidth: packed.width,
+          sourceHeight: packed.height,
           arkApiKey: creds.arkApiKey || undefined,
           arkModel: creds.arkModel || undefined,
         }
 
+        const payload = JSON.stringify(body)
+        assertJsonBodyWithinVercelLimit(payload)
+
         const response = await fetch("/api/generate", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
+          body: payload,
           signal: controller.signal,
         })
 
@@ -78,14 +92,18 @@ export function useVintageRestore(options?: UseVintageRestoreOptions) {
         const data: GenerateResponse = await response.json()
         setProgress(100)
         setLastDurationMs(Date.now() - startedAtRef.current)
-        options?.onSuccess?.(data.imageUrl, data.usage)
+        options?.onSuccess?.(data.imageUrl, data.usage, {
+          width: packed.width,
+          height: packed.height,
+        })
       } catch (err) {
         if (err instanceof Error) {
           if (err.name === "AbortError") {
             setError("处理已取消")
           } else {
-            setError(err.message)
-            options?.onError?.(err.message)
+            const msg = friendlyBrowserFetchError(err)
+            setError(msg)
+            options?.onError?.(msg)
           }
         } else {
           setError("未知错误")

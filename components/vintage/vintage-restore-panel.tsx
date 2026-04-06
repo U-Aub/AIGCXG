@@ -48,19 +48,27 @@ export function VintageRestorePanel({
   const [sourceW, setSourceW] = useState(3)
   const [sourceH, setSourceH] = useState(4)
   const [sourceDimsReady, setSourceDimsReady] = useState(false)
+  /** 最近一次请求 API 时实际使用的宽高（压缩后可能与预览原图不同） */
+  const [layoutSourcePx, setLayoutSourcePx] = useState<{
+    w: number
+    h: number
+  } | null>(null)
 
   const { isGenerating, progress, elapsedSeconds, lastDurationMs, error, restore } =
     useVintageRestore({
-    onSuccess: (url, usage) => {
+    onSuccess: (url, usage, submitted) => {
       incrementGuestUsageIfGuest()
       onGuestUsageConsumed?.()
       setResultUrl(url)
+      const w = submitted?.width ?? sourceW
+      const h = submitted?.height ?? sourceH
+      setLayoutSourcePx({ w, h })
       addRecord({
         kind: "vintage",
         imageUrl: url,
         sizeKey: "originalAspect",
-        sourceWidthPx: sourceW,
-        sourceHeightPx: sourceH,
+        sourceWidthPx: w,
+        sourceHeightPx: h,
         backgroundColorKey: "white",
       })
       if (usage && onApiUsage) {
@@ -74,6 +82,7 @@ export function VintageRestorePanel({
       setSourceW(3)
       setSourceH(4)
       setSourceDimsReady(false)
+      setLayoutSourcePx(null)
       return
     }
     setSourceDimsReady(false)
@@ -92,6 +101,7 @@ export function VintageRestorePanel({
 
   const handleImageChange = useCallback((next: string | null) => {
     setImage(next)
+    setLayoutSourcePx(null)
     if (!next) setResultUrl(null)
   }, [])
 
@@ -114,7 +124,9 @@ export function VintageRestorePanel({
     if (!resultUrl) return
     setIsDownloading(true)
     try {
-      const photoSize = photoSizeFromImagePixels(sourceW, sourceH)
+      const lw = layoutSourcePx?.w ?? sourceW
+      const lh = layoutSourcePx?.h ?? sourceH
+      const photoSize = photoSizeFromImagePixels(lw, lh)
       const out = await generateSinglePhoto(resultUrl, photoSize)
       if (out.success && out.dataUrl) {
         const ts = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19)
@@ -123,7 +135,7 @@ export function VintageRestorePanel({
     } finally {
       setIsDownloading(false)
     }
-  }, [resultUrl, sourceW, sourceH])
+  }, [resultUrl, sourceW, sourceH, layoutSourcePx])
 
   const canRun =
     !!image && !!prompt.trim() && !isGenerating && sourceDimsReady

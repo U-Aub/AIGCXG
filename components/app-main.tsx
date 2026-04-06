@@ -98,7 +98,7 @@ export function AppMain() {
 
   const { isGenerating, progress, elapsedSeconds, lastDurationMs, error, generate } =
     usePhotoGenerator({
-    onSuccess: (imageUrl, usage) => {
+    onSuccess: (imageUrl, usage, meta) => {
       incrementGuestUsageIfGuest()
       setGeneratedImage(imageUrl)
       addRecord({
@@ -107,9 +107,13 @@ export function AppMain() {
         customWidthMm: sizeKey === "custom" ? customWidthMm : undefined,
         customHeightMm: sizeKey === "custom" ? customHeightMm : undefined,
         sourceWidthPx:
-          sizeKey === "originalAspect" ? mainImageNatural?.width : undefined,
+          sizeKey === "originalAspect"
+            ? (meta?.submittedSourceWidth ?? mainImageNatural?.width)
+            : undefined,
         sourceHeightPx:
-          sizeKey === "originalAspect" ? mainImageNatural?.height : undefined,
+          sizeKey === "originalAspect"
+            ? (meta?.submittedSourceHeight ?? mainImageNatural?.height)
+            : undefined,
         backgroundColorKey,
       })
       if (usage) {
