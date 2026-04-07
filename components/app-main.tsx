@@ -3,7 +3,7 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
-import { AlertCircle, User } from "lucide-react"
+import { AlertCircle, LogOut, User } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -30,6 +30,7 @@ import {
   incrementGuestUsageIfGuest,
   getGuestRemainingCount,
   GUEST_TRIAL_LIMIT,
+  clearSession,
 } from "@/lib/client-ark-settings"
 
 export function AppMain() {
@@ -166,6 +167,11 @@ export function AppMain() {
     records.filter((r) => r.kind === "vintage").forEach((r) => deleteRecord(r.id))
   }, [records, deleteRecord])
 
+  const handleExitGuest = useCallback(() => {
+    clearSession()
+    router.replace("/login")
+  }, [router])
+
   return (
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-10 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -213,9 +219,21 @@ export function AppMain() {
           </div>
           <div className="flex flex-wrap items-center justify-end gap-2">
             {isGuestSession() ? (
-              <span className="text-xs text-muted-foreground tabular-nums">
-                访客体验 {getGuestRemainingCount()} / {GUEST_TRIAL_LIMIT} 次
-              </span>
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                <span className="text-xs text-muted-foreground tabular-nums">
+                  访客体验 {getGuestRemainingCount()} / {GUEST_TRIAL_LIMIT} 次
+                </span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5"
+                  onClick={handleExitGuest}
+                >
+                  <LogOut className="h-4 w-4" />
+                  退出访客模式
+                </Button>
+              </div>
             ) : (
               <>
                 <Button
