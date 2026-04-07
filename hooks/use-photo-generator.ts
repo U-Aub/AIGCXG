@@ -31,7 +31,7 @@ interface UsePhotoGeneratorOptions {
 interface UsePhotoGeneratorReturn {
   isGenerating: boolean
   progress: number
-  /** 处理已进行秒数（进行中刷新） */
+  /** 已进行秒数（进行中刷新，用于与预计 120 秒对比显示倒计时） */
   elapsedSeconds: number
   /** 最近一次成功完成时的总耗时（毫秒），新任务开始时清空 */
   lastDurationMs: number | null

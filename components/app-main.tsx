@@ -3,7 +3,7 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
-import { AlertCircle, KeyRound, User } from "lucide-react"
+import { AlertCircle, User } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -135,7 +135,8 @@ export function AppMain() {
       backgroundReferenceImage: customBackgroundImage,
       sizeKey,
       backgroundColorKey,
-      customPrompt: customPrompt || undefined,
+      customPrompt:
+        isGuestSession() ? undefined : customPrompt || undefined,
       customWidthMm: sizeKey === "custom" ? customWidthMm : undefined,
       customHeightMm: sizeKey === "custom" ? customHeightMm : undefined,
       sourceWidth: mainImageNatural?.width,
@@ -212,10 +213,11 @@ export function AppMain() {
           </div>
           <div className="flex flex-wrap items-center justify-end gap-2">
             {isGuestSession() ? (
+              <span className="text-xs text-muted-foreground tabular-nums">
+                访客体验 {getGuestRemainingCount()} / {GUEST_TRIAL_LIMIT} 次
+              </span>
+            ) : (
               <>
-                <span className="text-xs text-muted-foreground tabular-nums">
-                  访客体验 {getGuestRemainingCount()} / {GUEST_TRIAL_LIMIT} 次
-                </span>
                 <Button
                   type="button"
                   variant="outline"
@@ -223,23 +225,12 @@ export function AppMain() {
                   className="gap-1.5"
                   onClick={() => setMyOpen(true)}
                 >
-                  <KeyRound className="h-4 w-4" />
-                  密钥
+                  <User className="h-4 w-4" />
+                  我的
                 </Button>
+                <ApiUsageBadge usage={apiUsage} />
               </>
-            ) : (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="gap-1.5"
-                onClick={() => setMyOpen(true)}
-              >
-                <User className="h-4 w-4" />
-                我的
-              </Button>
             )}
-            <ApiUsageBadge usage={apiUsage} />
           </div>
         </div>
       </header>
@@ -314,18 +305,20 @@ export function AppMain() {
                       customBackgroundImage={customBackgroundImage}
                       onCustomBackgroundChange={setCustomBackgroundImage}
                     />
-                    <PromptEditor
-                      value={customPrompt}
-                      onChange={setCustomPrompt}
-                      sizeKey={sizeKey}
-                      backgroundColorKey={backgroundColorKey}
-                      hasClothingImage={!!clothingImage}
-                      hasBackgroundReference={!!customBackgroundImage}
-                      customWidthMm={customWidthMm}
-                      customHeightMm={customHeightMm}
-                      sourcePixelWidth={mainImageNatural?.width}
-                      sourcePixelHeight={mainImageNatural?.height}
-                    />
+                    {!isGuestSession() ? (
+                      <PromptEditor
+                        value={customPrompt}
+                        onChange={setCustomPrompt}
+                        sizeKey={sizeKey}
+                        backgroundColorKey={backgroundColorKey}
+                        hasClothingImage={!!clothingImage}
+                        hasBackgroundReference={!!customBackgroundImage}
+                        customWidthMm={customWidthMm}
+                        customHeightMm={customHeightMm}
+                        sourcePixelWidth={mainImageNatural?.width}
+                        sourcePixelHeight={mainImageNatural?.height}
+                      />
+                    ) : null}
                   </div>
                 </div>
 

@@ -15,6 +15,7 @@ import { DEFAULT_VINTAGE_PROMPT } from "@/lib/vintage-defaults"
 import {
   guestQuotaExceeded,
   incrementGuestUsageIfGuest,
+  isGuestSession,
 } from "@/lib/client-ark-settings"
 import { photoSizeFromImagePixels } from "@/lib/photo-sizes"
 import { generateSinglePhoto, downloadImage } from "@/lib/layout-generator"
@@ -106,14 +107,18 @@ export function VintageRestorePanel({
   }, [])
 
   const handleRestore = useCallback(() => {
-    if (!image || !prompt.trim()) return
+    if (!image) return
+    const effectivePrompt = isGuestSession()
+      ? DEFAULT_VINTAGE_PROMPT
+      : prompt.trim()
+    if (!effectivePrompt) return
     if (guestQuotaExceeded()) {
       onGuestQuotaBlocked?.()
       return
     }
     void restore({
       image,
-      prompt: prompt.trim(),
+      prompt: effectivePrompt,
       sourceWidth: sourceW,
       sourceHeight: sourceH,
     })
@@ -138,7 +143,10 @@ export function VintageRestorePanel({
   }, [resultUrl, sourceW, sourceH, layoutSourcePx])
 
   const canRun =
-    !!image && !!prompt.trim() && !isGenerating && sourceDimsReady
+    !!image &&
+    !isGenerating &&
+    sourceDimsReady &&
+    (isGuestSession() || !!prompt.trim())
 
   return (
     <>
@@ -163,25 +171,27 @@ export function VintageRestorePanel({
             />
           </div>
 
-          <div className="rounded-xl border border-border bg-card p-5">
-            <h2 className="mb-4 text-base font-medium text-foreground">文字要求</h2>
-            <div className="space-y-2">
-              <Label htmlFor="vintage-prompt" className="text-sm text-muted-foreground">
-                提示词（将随照片一并提交处理）
-              </Label>
-              <Textarea
-                id="vintage-prompt"
-                value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
-                rows={8}
-                className="min-h-[180px] resize-y font-mono text-sm"
-                placeholder={DEFAULT_VINTAGE_PROMPT}
-              />
-              <p className="text-xs text-muted-foreground">
-                默认英文提示适用于老照片修复；可按需改为中文或补充细节。
-              </p>
+          {!isGuestSession() ? (
+            <div className="rounded-xl border border-border bg-card p-5">
+              <h2 className="mb-4 text-base font-medium text-foreground">文字要求</h2>
+              <div className="space-y-2">
+                <Label htmlFor="vintage-prompt" className="text-sm text-muted-foreground">
+                  提示词（将随照片一并提交处理）
+                </Label>
+                <Textarea
+                  id="vintage-prompt"
+                  value={prompt}
+                  onChange={(e) => setPrompt(e.target.value)}
+                  rows={8}
+                  className="min-h-[180px] resize-y font-mono text-sm"
+                  placeholder={DEFAULT_VINTAGE_PROMPT}
+                />
+                <p className="text-xs text-muted-foreground">
+                  默认英文提示适用于老照片修复；可按需改为中文或补充细节。
+                </p>
+              </div>
             </div>
-          </div>
+          ) : null}
 
           <div className="lg:hidden space-y-3">
             <Button

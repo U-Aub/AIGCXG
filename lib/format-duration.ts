@@ -1,3 +1,15 @@
+/** 照片处理预计总时长（秒），用于处理中倒计时展示 */
+export const ESTIMATED_PROCESSING_SECONDS = 120
+
+/** 根据已进行秒数与预计总秒数，得到倒计时剩余秒数（不低于 0） */
+export function remainingSecondsFromEstimate(
+  elapsedSeconds: number,
+  estimatedTotalSeconds: number = ESTIMATED_PROCESSING_SECONDS
+): number {
+  const e = Math.max(0, Math.floor(elapsedSeconds))
+  return Math.max(0, estimatedTotalSeconds - e)
+}
+
 /** 格式化为「分:秒」用于处理中计时 */
 export function formatElapsedClock(totalSeconds: number): string {
   const s = Math.max(0, Math.floor(totalSeconds))

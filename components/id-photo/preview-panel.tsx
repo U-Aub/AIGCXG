@@ -2,13 +2,18 @@
 
 import { ImageIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { formatElapsedClock, formatTotalDurationMs } from "@/lib/format-duration"
+import {
+  ESTIMATED_PROCESSING_SECONDS,
+  formatElapsedClock,
+  formatTotalDurationMs,
+  remainingSecondsFromEstimate,
+} from "@/lib/format-duration"
 
 interface PreviewPanelProps {
   generatedImage: string | null
   isGenerating: boolean
   progress?: number
-  /** 处理已进行秒数 */
+  /** 已进行秒数（用于与预计时长对比显示倒计时） */
   elapsedSeconds?: number
   /** 最近一次成功完成总耗时（毫秒） */
   lastDurationMs?: number | null
@@ -28,6 +33,7 @@ export function PreviewPanel({
 }: PreviewPanelProps) {
   const arW = Math.max(1, aspectWidthMm)
   const arH = Math.max(1, aspectHeightMm)
+  const remainingEstimate = remainingSecondsFromEstimate(elapsedSeconds)
 
   return (
     <div className="space-y-4">
@@ -71,10 +77,13 @@ export function PreviewPanel({
             </div>
             <div className="flex flex-col items-center gap-1 text-center">
               <span className="font-mono text-sm font-medium tabular-nums text-foreground">
-                已用时 {formatElapsedClock(elapsedSeconds)}
+                预计时长 {formatElapsedClock(ESTIMATED_PROCESSING_SECONDS)} · 剩余{" "}
+                {formatElapsedClock(remainingEstimate)}
               </span>
-              <span className="max-w-[14rem] text-xs text-muted-foreground">
-                处理中，请勿切换网页
+              <span className="max-w-[16rem] text-xs text-muted-foreground">
+                {remainingEstimate === 0
+                  ? "已超过预计时间，仍在处理中，请勿切换网页"
+                  : "处理中，请勿切换网页"}
               </span>
             </div>
           </div>
